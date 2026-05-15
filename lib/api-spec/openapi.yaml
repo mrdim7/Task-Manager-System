@@ -3,20 +3,36 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Task Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User management
+  - name: security-groups
+    description: Security group management
+  - name: tasks
+    description: Task management
+  - name: task-notes
+    description: Task note management
+  - name: categories
+    description: Task category management
+  - name: priorities
+    description: Task priority management
+  - name: dashboard
+    description: Dashboard and summary data
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +40,789 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Users
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /users/{id}/reset-password:
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset a user's password (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Security Groups
+  /security-groups:
+    get:
+      operationId: listSecurityGroups
+      tags: [security-groups]
+      summary: List all security groups
+      responses:
+        "200":
+          description: List of security groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SecurityGroup"
+    post:
+      operationId: createSecurityGroup
+      tags: [security-groups]
+      summary: Create a security group (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSecurityGroupRequest"
+      responses:
+        "201":
+          description: Security group created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityGroup"
+
+  /security-groups/{id}:
+    get:
+      operationId: getSecurityGroup
+      tags: [security-groups]
+      summary: Get a security group by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Security group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityGroup"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateSecurityGroup
+      tags: [security-groups]
+      summary: Update a security group (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSecurityGroupRequest"
+      responses:
+        "200":
+          description: Updated security group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityGroup"
+    delete:
+      operationId: deleteSecurityGroup
+      tags: [security-groups]
+      summary: Delete a security group (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Categories
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List task categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a task category (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    put:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update a category (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a category (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Priorities
+  /priorities:
+    get:
+      operationId: listPriorities
+      tags: [priorities]
+      summary: List task priorities
+      responses:
+        "200":
+          description: List of priorities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Priority"
+    post:
+      operationId: createPriority
+      tags: [priorities]
+      summary: Create a task priority (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePriorityRequest"
+      responses:
+        "201":
+          description: Priority created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Priority"
+
+  /priorities/{id}:
+    put:
+      operationId: updatePriority
+      tags: [priorities]
+      summary: Update a priority (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePriorityRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Priority"
+    delete:
+      operationId: deletePriority
+      tags: [priorities]
+      summary: Delete a priority (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Tasks
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks (filtered by user's security groups)
+      parameters:
+        - name: parentId
+          in: query
+          schema:
+            type: integer
+            nullable: true
+          description: Filter by parent task (null for root tasks)
+        - name: ownerId
+          in: query
+          schema:
+            type: integer
+        - name: assignedToId
+          in: query
+          schema:
+            type: integer
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: priorityId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: rootOnly
+          in: query
+          schema:
+            type: boolean
+          description: Return only root-level tasks (no parent)
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Task Notes
+  /tasks/{taskId}/notes:
+    get:
+      operationId: listTaskNotes
+      tags: [task-notes]
+      summary: List notes for a task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notes list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskNote"
+    post:
+      operationId: createTaskNote
+      tags: [task-notes]
+      summary: Add a note to a task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskNoteRequest"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskNote"
+
+  /tasks/{taskId}/notes/{noteId}:
+    put:
+      operationId: updateTaskNote
+      tags: [task-notes]
+      summary: Update a note
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskNoteRequest"
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskNote"
+    delete:
+      operationId: deleteTaskNote
+      tags: [task-notes]
+      summary: Delete a note
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # Dashboard
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary counts and stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/my-tasks:
+    get:
+      operationId: getMyTasks
+      tags: [dashboard]
+      summary: Get tasks assigned to or owned by the current user
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: My tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /dashboard/overdue-tasks:
+    get:
+      operationId: getOverdueTasks
+      tags: [dashboard]
+      summary: Get overdue tasks visible to the current user
+      responses:
+        "200":
+          description: Overdue tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /dashboard/tasks-by-priority:
+    get:
+      operationId: getTasksByPriority
+      tags: [dashboard]
+      summary: Get task counts grouped by priority
+      responses:
+        "200":
+          description: Tasks grouped by priority
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskCountByGroup"
+
+  /dashboard/tasks-by-category:
+    get:
+      operationId: getTasksByCategory
+      tags: [dashboard]
+      summary: Get task counts grouped by category
+      responses:
+        "200":
+          description: Tasks grouped by category
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskCountByGroup"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +833,495 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+      required:
+        - message
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+      required:
+        - currentPassword
+        - newPassword
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        newPassword:
+          type: string
+      required:
+        - newPassword
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+          description: JWT token for mobile clients
+      required:
+        - user
+        - token
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+        isAdmin:
+          type: boolean
+        isActive:
+          type: boolean
+        securityGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityGroupSummary"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - firstName
+        - surname
+        - email
+        - isAdmin
+        - isActive
+        - securityGroups
+        - createdAt
+
+    CreateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        isAdmin:
+          type: boolean
+        isActive:
+          type: boolean
+        securityGroupIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - firstName
+        - surname
+        - email
+        - password
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+          format: email
+        isAdmin:
+          type: boolean
+        isActive:
+          type: boolean
+        securityGroupIds:
+          type: array
+          items:
+            type: integer
+
+    SecurityGroupSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
+
+    SecurityGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSummary"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - members
+        - createdAt
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - firstName
+        - surname
+        - email
+
+    CreateSecurityGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        memberIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - name
+
+    UpdateSecurityGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        memberIds:
+          type: array
+          items:
+            type: integer
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - createdAt
+
+    CreateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+
+    Priority:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        order:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - order
+        - createdAt
+
+    CreatePriorityRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        order:
+          type: integer
+      required:
+        - name
+        - order
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        parentId:
+          type: integer
+          nullable: true
+        categoryId:
+          type: integer
+          nullable: true
+        categoryName:
+          type: string
+          nullable: true
+        priorityId:
+          type: integer
+          nullable: true
+        priorityName:
+          type: string
+          nullable: true
+        ownerId:
+          type: integer
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        assignedToId:
+          type: integer
+          nullable: true
+        assignedToName:
+          type: string
+          nullable: true
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        hasChildren:
+          type: boolean
+        childCount:
+          type: integer
+        noteCount:
+          type: integer
+        securityGroupIds:
+          type: array
+          items:
+            type: integer
+        securityGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityGroupSummary"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - progress
+        - hasChildren
+        - childCount
+        - noteCount
+        - securityGroupIds
+        - securityGroups
+        - createdAt
+        - updatedAt
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        parentId:
+          type: integer
+          nullable: true
+        categoryId:
+          type: integer
+          nullable: true
+        priorityId:
+          type: integer
+          nullable: true
+        ownerId:
+          type: integer
+          nullable: true
+        assignedToId:
+          type: integer
+          nullable: true
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        securityGroupIds:
+          type: array
+          items:
+            type: integer
+      required:
+        - name
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        categoryId:
+          type: integer
+          nullable: true
+        priorityId:
+          type: integer
+          nullable: true
+        ownerId:
+          type: integer
+          nullable: true
+        assignedToId:
+          type: integer
+          nullable: true
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+        startDate:
+          type: string
+          format: date
+          nullable: true
+        securityGroupIds:
+          type: array
+          items:
+            type: integer
+
+    TaskNote:
+      type: object
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        content:
+          type: string
+        authorId:
+          type: integer
+        authorName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - taskId
+        - content
+        - authorId
+        - authorName
+        - createdAt
+        - updatedAt
+
+    CreateTaskNoteRequest:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        overdueTasks:
+          type: integer
+        myOpenTasks:
+          type: integer
+        tasksInProgress:
+          type: integer
+        upcomingDueSoon:
+          type: integer
+      required:
+        - totalTasks
+        - completedTasks
+        - overdueTasks
+        - myOpenTasks
+        - tasksInProgress
+        - upcomingDueSoon
+
+    TaskCountByGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        count:
+          type: integer
+      required:
+        - name
+        - count

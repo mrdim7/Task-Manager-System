@@ -1,0 +1,42 @@
+Wanting to create a task management system.
+The application must be accessible from both through a web browser and android application.
+
+For the web access, the application needs to get the username and password.
+For the mobile application, the application needs to remember the user’s credentials.
+
+It is also required that the application should be able to be hosted on a on-prem server, i.e. on an Ubuntu server.
+
+For user management:
+1.	This section of the application to not required to be accessed by the mobile 
+2.	The defined administrators will only have access to modify these details
+3.	The following information will be required to be capture against the user:
+3.1.	first name
+3.2.	surname
+3.3.	email address (used by the user to login)
+3.4.	Is administrator?
+3.5.	Security groups that this user belongs to
+3.6.	An active flag
+For Security groups:
+1.	This section of the application to not required to be accessed by the mobile application
+2.	The defined administrators will only have access to modify these details
+3.	The name of the security group
+4.	The members of the security group
+Task management:
+1.	This section needs to be accessible from both the web and mobile client
+2.	All users must have the facility to add tasks
+3.	The following fields will be required for tasks:
+3.1.	Name of the task
+3.2.	Task category (dropdown list managed by the administrators)
+3.3.	Task owner (dropdown list of all users)
+3.4.	Assigned to (dropdown list of all users)
+3.5.	Task description (multi line)
+3.6.	Notes (a facility for the user to add multiple notes against the task)
+3.7.	Child tasks
+3.8.	Priority (dropdown list managed by the administrators)
+3.9.	Due date
+3.10.	Start date
+3.11.	Progress percentage (if this task has child tasks then this is calculated based on the child task percentages, else the user enters the value)
+3.12.	Security groups
+3.12.1.	which security groups will see this task
+3.12.2.	this field will only be visible for the root parent tasks
+3.12.3.	  by default (when the task is created), this list will contain a list of all security groups that the creating user belongs too
