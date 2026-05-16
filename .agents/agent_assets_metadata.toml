@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "iUAnUWmYkQ4hy4OpmO2Jx"
+uri = "file://DEPLOY.md"
+type = "text"
+title = "TaskFlow — Ubuntu Deployment Guide"
