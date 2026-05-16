@@ -375,20 +375,20 @@ export default function TaskDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Category</Label>
-                <Select value={editForm.categoryId ? String(editForm.categoryId) : ""} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v ? Number(v) : undefined }))}>
+                <Select value={editForm.categoryId ? String(editForm.categoryId) : "none"} onValueChange={(v) => setEditForm((f) => ({ ...f, categoryId: v === "none" ? undefined : Number(v) }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {categories.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Priority</Label>
-                <Select value={editForm.priorityId ? String(editForm.priorityId) : ""} onValueChange={(v) => setEditForm((f) => ({ ...f, priorityId: v ? Number(v) : undefined }))}>
+                <Select value={editForm.priorityId ? String(editForm.priorityId) : "none"} onValueChange={(v) => setEditForm((f) => ({ ...f, priorityId: v === "none" ? undefined : Number(v) }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {priorities.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -397,20 +397,20 @@ export default function TaskDetail() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Assigned To</Label>
-                <Select value={editForm.assignedToId ? String(editForm.assignedToId) : ""} onValueChange={(v) => setEditForm((f) => ({ ...f, assignedToId: v ? Number(v) : undefined }))}>
+                <Select value={editForm.assignedToId ? String(editForm.assignedToId) : "none"} onValueChange={(v) => setEditForm((f) => ({ ...f, assignedToId: v === "none" ? undefined : Number(v) }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {users.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.surname}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Owner</Label>
-                <Select value={editForm.ownerId ? String(editForm.ownerId) : ""} onValueChange={(v) => setEditForm((f) => ({ ...f, ownerId: v ? Number(v) : undefined }))}>
+                <Select value={editForm.ownerId ? String(editForm.ownerId) : "none"} onValueChange={(v) => setEditForm((f) => ({ ...f, ownerId: v === "none" ? undefined : Number(v) }))}>
                   <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {users.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.surname}</SelectItem>)}
                   </SelectContent>
                 </Select>
