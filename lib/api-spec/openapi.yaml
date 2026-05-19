@@ -909,6 +909,10 @@ components:
           type: boolean
         isActive:
           type: boolean
+        authProvider:
+          type: string
+          enum: [local, ldap]
+          description: Authentication provider for this user
         securityGroups:
           type: array
           items:
@@ -923,6 +927,7 @@ components:
         - email
         - isAdmin
         - isActive
+        - authProvider
         - securityGroups
         - createdAt
 
@@ -938,6 +943,12 @@ components:
           format: email
         password:
           type: string
+          description: Required for local accounts; omit for LDAP accounts
+        authProvider:
+          type: string
+          enum: [local, ldap]
+          default: local
+          description: Authentication provider; defaults to local
         isAdmin:
           type: boolean
         isActive:
@@ -950,7 +961,6 @@ components:
         - firstName
         - surname
         - email
-        - password
 
     UpdateUserRequest:
       type: object

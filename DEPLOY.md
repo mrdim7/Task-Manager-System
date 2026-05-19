@@ -411,3 +411,219 @@ gunzip -c /backups/taskflow_2025-01-01.sql.gz | sudo -u postgres psql taskflow
 | Port 8080 refused | Normal — the API is only accessible through nginx on port 80/443 |
 | Static files not updating | Browser may cache `index.html`; force-refresh with Ctrl+Shift+R; or verify the Vite build completed and nginx root path is correct |
 | Schema drift after update | Re-run `pnpm --filter @workspace/db run push` with `DATABASE_URL` exported |
+
+---
+
+## 13. Docker Deployment (Alternative to systemd)
+
+Use Docker when you want self-contained, image-based deployments rather than managing Node.js and nginx directly on the host.
+
+### 13.1 Prerequisites
+
+```bash
+# Install Docker Engine
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER   # re-login after this
+
+# Install Docker Compose v2
+sudo apt-get install -y docker-compose-plugin
+docker compose version
+```
+
+### 13.2 Transfer the project to the server
+
+```bash
+rsync -av --exclude node_modules --exclude '*/dist' --exclude '.git' \
+  /path/to/taskflow/ your-server:/opt/taskflow/
+```
+
+### 13.3 Create the environment file
+
+The Docker setup reads from `.env.docker` in the project root. A template is included — copy and edit it:
+
+```bash
+cd /opt/taskflow
+cp .env.docker .env.docker.local
+nano .env.docker.local
+```
+
+At minimum set these three values:
+
+```
+DATABASE_URL=postgresql://taskflow_user:password@your-existing-pg-host:5432/taskflow
+SESSION_SECRET=<64-char random hex — see below>
+```
+
+Generate `SESSION_SECRET`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Then update `docker-compose.yml` to point at your local file:
+
+```yaml
+env_file: .env.docker.local
+```
+
+### 13.4 Prepare the database on your existing PostgreSQL server
+
+Connect to your PostgreSQL server and create a dedicated database and user for TaskFlow (do this once):
+
+```sql
+CREATE USER taskflow_user WITH PASSWORD 'strong_password_here';
+CREATE DATABASE taskflow OWNER taskflow_user;
+-- If the database already exists, just grant access:
+-- GRANT ALL PRIVILEGES ON DATABASE taskflow TO taskflow_user;
+```
+
+### 13.5 Push the database schema
+
+Before starting the containers, apply the TaskFlow schema to the database. Run this from the project directory on the server (requires Node.js and pnpm to be installed, or run it temporarily in a builder container):
+
+```bash
+DATABASE_URL=postgresql://taskflow_user:password@your-pg-host:5432/taskflow \
+  pnpm --filter @workspace/db run push
+```
+
+Or use Docker to run it without installing Node.js on the host:
+
+```bash
+docker build --target builder -t taskflow-builder .
+docker run --rm \
+  -e DATABASE_URL=postgresql://taskflow_user:password@your-pg-host:5432/taskflow \
+  taskflow-builder \
+  pnpm --filter @workspace/db run push-force
+```
+
+### 13.6 Build and start
+
+```bash
+cd /opt/taskflow
+docker compose build
+docker compose up -d
+docker compose ps        # confirm both services are up
+docker compose logs -f   # watch live logs
+```
+
+TaskFlow is now reachable on port 80 of the host.
+
+### 13.7 HTTPS in Docker
+
+The recommended approach is to put a reverse proxy in front of the `web` container. Options:
+
+**Nginx Proxy Manager (GUI)** — easiest:
+```bash
+# Add to docker-compose.yml under services:
+#   proxy:
+#     image: jc21/nginx-proxy-manager:latest
+#     ports: ["80:80", "443:443", "81:81"]
+#     volumes: [./proxy-data:/data, ./letsencrypt:/etc/letsencrypt]
+```
+
+**Traefik** — popular in production environments; add labels to the `web` service and configure a Let's Encrypt resolver.
+
+**Host nginx** — keep nginx on the host, have it proxy to the container's port 80:
+```nginx
+server {
+    listen 443 ssl;
+    server_name your.domain.com;
+    ssl_certificate     /etc/ssl/certs/taskflow.crt;
+    ssl_certificate_key /etc/ssl/private/taskflow.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+### 13.8 Update a running deployment
+
+```bash
+cd /opt/taskflow
+git pull                         # or rsync from your workstation
+
+# Apply any schema changes first
+docker run --rm \
+  -e DATABASE_URL=$(grep DATABASE_URL .env.docker.local | cut -d= -f2-) \
+  $(docker compose build -q api) \
+  node dist/index.mjs             # schema push via builder — see 13.5
+
+docker compose build              # rebuild images
+docker compose up -d              # rolling restart (web first, then api)
+```
+
+---
+
+## 14. LDAP / Active Directory Authentication
+
+TaskFlow supports two authentication modes simultaneously:
+
+| Mode | How it works |
+|---|---|
+| **Local** | Password stored (bcrypt-hashed) in the TaskFlow database |
+| **LDAP** | TaskFlow binds to your AD/LDAP server to verify the user's corporate password; no password stored locally |
+
+Both modes can be active at the same time. Each user account has an `authProvider` field (`local` or `ldap`) set at creation.
+
+### 14.1 Enable LDAP
+
+Add the following environment variables to `/etc/taskflow/env` (systemd) or `.env.docker.local` (Docker):
+
+```bash
+# Required
+LDAP_URL=ldap://your-dc.company.com:389
+
+# For LDAPS (TLS — recommended for production):
+# LDAP_URL=ldaps://your-dc.company.com:636
+
+# Base DN — the root of your directory tree
+LDAP_BASE_DN=DC=company,DC=com
+
+# Service account used to search the directory (read-only is sufficient)
+LDAP_BIND_DN=CN=svc-taskflow,OU=ServiceAccounts,DC=company,DC=com
+LDAP_BIND_PASSWORD=service_account_password
+
+# Filter to locate a user by the email they type at the login screen
+# {{email}} is replaced with the LDAP-escaped email address
+LDAP_USER_FILTER=(&(objectClass=person)(mail={{email}}))
+
+# Attribute mapping (defaults shown — adjust to match your schema)
+LDAP_ATTR_EMAIL=mail
+LDAP_ATTR_FIRSTNAME=givenName
+LDAP_ATTR_SURNAME=sn
+```
+
+Restart the API service after changing these values.
+
+### 14.2 Common Active Directory filter patterns
+
+| Scenario | Filter |
+|---|---|
+| Match by `mail` attribute (most common) | `(&(objectClass=person)(mail={{email}}))` |
+| Match by User Principal Name | `(&(objectClass=user)(userPrincipalName={{email}}))` |
+| Restrict to a specific OU | `(&(objectClass=person)(mail={{email}})(memberOf=CN=TaskFlow-Users,OU=Groups,DC=company,DC=com))` |
+
+### 14.3 Creating LDAP users in the admin portal
+
+In the **Users** admin page, click **New User** and set **Auth Provider** to **LDAP / Active Directory**. No password is required — TaskFlow will never store one.
+
+Alternatively, users can simply log in for the first time using their corporate credentials and TaskFlow will **auto-provision** their account automatically (with `isAdmin: false` by default).
+
+### 14.4 Behaviour differences for LDAP accounts
+
+- The **Reset Password** button is hidden for LDAP users (password is managed in AD)
+- The **Change Password** form in Settings is blocked for LDAP users
+- On each LDAP login, TaskFlow refreshes the user's first name and surname from the directory
+- Disabling a user in TaskFlow (`isActive: false`) will prevent login even if the AD account is still active
+
+### 14.5 Troubleshooting LDAP
+
+| Symptom | Check |
+|---|---|
+| LDAP users get "Invalid email or password" | Verify `LDAP_URL` is reachable from the server; check `LDAP_BIND_DN` / `LDAP_BIND_PASSWORD`; confirm the filter matches a real user |
+| "LDAP authentication is not configured" | `LDAP_URL` env var is missing; restart the API after adding it |
+| Name not updating after AD change | Name syncs on every successful login; if it's not updating, the LDAP attributes may be mapped to wrong field names |
+| LDAPS certificate errors | The server uses `rejectUnauthorized: false` for self-signed certs; for CA-signed certs this works automatically |

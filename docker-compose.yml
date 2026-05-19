@@ -1,0 +1,35 @@
+services:
+
+  # ── API server ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      target: api
+    env_file: .env.docker
+    restart: unless-stopped
+    networks:
+      - taskflow
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/api/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Web / reverse-proxy (nginx) ─────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - taskflow
+
+networks:
+  taskflow:
+    driver: bridge

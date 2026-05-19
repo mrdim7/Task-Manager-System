@@ -32,6 +32,17 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+/**
+ * Authentication provider for this user
+ */
+export type UserAuthProvider = typeof UserAuthProvider[keyof typeof UserAuthProvider];
+
+
+export const UserAuthProvider = {
+  local: 'local',
+  ldap: 'ldap',
+} as const;
+
 export interface SecurityGroupSummary {
   id: number;
   name: string;
@@ -44,6 +55,8 @@ export interface User {
   email: string;
   isAdmin: boolean;
   isActive: boolean;
+  /** Authentication provider for this user */
+  authProvider: UserAuthProvider;
   securityGroups: SecurityGroupSummary[];
   createdAt: string;
 }
@@ -54,11 +67,25 @@ export interface AuthResponse {
   token: string;
 }
 
+/**
+ * Authentication provider; defaults to local
+ */
+export type CreateUserRequestAuthProvider = typeof CreateUserRequestAuthProvider[keyof typeof CreateUserRequestAuthProvider];
+
+
+export const CreateUserRequestAuthProvider = {
+  local: 'local',
+  ldap: 'ldap',
+} as const;
+
 export interface CreateUserRequest {
   firstName: string;
   surname: string;
   email: string;
-  password: string;
+  /** Required for local accounts; omit for LDAP accounts */
+  password?: string;
+  /** Authentication provider; defaults to local */
+  authProvider?: CreateUserRequestAuthProvider;
   isAdmin?: boolean;
   isActive?: boolean;
   securityGroupIds?: number[];

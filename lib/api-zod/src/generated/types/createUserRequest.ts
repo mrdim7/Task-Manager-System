@@ -5,12 +5,16 @@
  * Task Management System API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateUserRequestAuthProvider } from './createUserRequestAuthProvider';
 
 export interface CreateUserRequest {
   firstName: string;
   surname: string;
   email: string;
-  password: string;
+  /** Required for local accounts; omit for LDAP accounts */
+  password?: string;
+  /** Authentication provider; defaults to local */
+  authProvider?: CreateUserRequestAuthProvider;
   isAdmin?: boolean;
   isActive?: boolean;
   securityGroupIds?: number[];

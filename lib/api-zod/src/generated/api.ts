@@ -32,6 +32,7 @@ export const LoginResponse = zod.object({
   "email": zod.string(),
   "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
+  "authProvider": zod.enum(['local', 'ldap']).describe('Authentication provider for this user'),
   "securityGroups": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()
@@ -60,6 +61,7 @@ export const GetMeResponse = zod.object({
   "email": zod.string(),
   "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
+  "authProvider": zod.enum(['local', 'ldap']).describe('Authentication provider for this user'),
   "securityGroups": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()
@@ -96,6 +98,7 @@ export const ListUsersResponseItem = zod.object({
   "email": zod.string(),
   "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
+  "authProvider": zod.enum(['local', 'ldap']).describe('Authentication provider for this user'),
   "securityGroups": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()
@@ -108,11 +111,14 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem)
 /**
  * @summary Create a new user (admin only)
  */
+export const createUserBodyAuthProviderDefault = `local`;
+
 export const CreateUserBody = zod.object({
   "firstName": zod.string(),
   "surname": zod.string(),
   "email": zod.string().email(),
-  "password": zod.string(),
+  "password": zod.string().optional().describe('Required for local accounts; omit for LDAP accounts'),
+  "authProvider": zod.enum(['local', 'ldap']).default(createUserBodyAuthProviderDefault).describe('Authentication provider; defaults to local'),
   "isAdmin": zod.boolean().optional(),
   "isActive": zod.boolean().optional(),
   "securityGroupIds": zod.array(zod.number()).optional()
@@ -133,6 +139,7 @@ export const GetUserResponse = zod.object({
   "email": zod.string(),
   "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
+  "authProvider": zod.enum(['local', 'ldap']).describe('Authentication provider for this user'),
   "securityGroups": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()
@@ -164,6 +171,7 @@ export const UpdateUserResponse = zod.object({
   "email": zod.string(),
   "isAdmin": zod.boolean(),
   "isActive": zod.boolean(),
+  "authProvider": zod.enum(['local', 'ldap']).describe('Authentication provider for this user'),
   "securityGroups": zod.array(zod.object({
   "id": zod.number(),
   "name": zod.string()

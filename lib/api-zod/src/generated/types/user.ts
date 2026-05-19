@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SecurityGroupSummary } from './securityGroupSummary';
+import type { UserAuthProvider } from './userAuthProvider';
 
 export interface User {
   id: number;
@@ -14,6 +15,8 @@ export interface User {
   email: string;
   isAdmin: boolean;
   isActive: boolean;
+  /** Authentication provider for this user */
+  authProvider: UserAuthProvider;
   securityGroups: SecurityGroupSummary[];
   createdAt: Date;
 }

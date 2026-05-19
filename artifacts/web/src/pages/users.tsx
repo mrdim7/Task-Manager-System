@@ -31,6 +31,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, KeyRound, Search } from "lucide-react";
 
@@ -49,12 +56,22 @@ export default function Users() {
   const [newPassword, setNewPassword] = useState("");
 
   const [createForm, setCreateForm] = useState({
-    firstName: "", surname: "", email: "", password: "", isAdmin: false, isActive: true,
+    firstName: "",
+    surname: "",
+    email: "",
+    password: "",
+    authProvider: "local" as "local" | "ldap",
+    isAdmin: false,
+    isActive: true,
     securityGroupIds: [] as number[],
   });
 
   const [editForm, setEditForm] = useState({
-    firstName: "", surname: "", email: "", isAdmin: false, isActive: true,
+    firstName: "",
+    surname: "",
+    email: "",
+    isAdmin: false,
+    isActive: true,
     securityGroupIds: [] as number[],
   });
 
@@ -62,7 +79,12 @@ export default function Users() {
 
   const createMutation = useCreateUser({
     mutation: {
-      onSuccess: () => { invalidate(); setShowCreate(false); setCreateForm({ firstName: "", surname: "", email: "", password: "", isAdmin: false, isActive: true, securityGroupIds: [] }); toast({ title: "User created" }); },
+      onSuccess: () => {
+        invalidate();
+        setShowCreate(false);
+        setCreateForm({ firstName: "", surname: "", email: "", password: "", authProvider: "local", isAdmin: false, isActive: true, securityGroupIds: [] });
+        toast({ title: "User created" });
+      },
       onError: (e: Error) => toast({ variant: "destructive", title: "Failed to create user", description: e.message }),
     },
   });
@@ -123,6 +145,29 @@ export default function Users() {
     </div>
   );
 
+  const handleCreate = () => {
+    const payload: Parameters<typeof createMutation.mutate>[0]["data"] = {
+      firstName: createForm.firstName,
+      surname: createForm.surname,
+      email: createForm.email,
+      authProvider: createForm.authProvider,
+      isAdmin: createForm.isAdmin,
+      isActive: createForm.isActive,
+      securityGroupIds: createForm.securityGroupIds,
+    };
+    if (createForm.authProvider === "local") {
+      payload.password = createForm.password;
+    }
+    createMutation.mutate({ data: payload });
+  };
+
+  const isCreateDisabled =
+    !createForm.firstName ||
+    !createForm.surname ||
+    !createForm.email ||
+    (createForm.authProvider === "local" && !createForm.password) ||
+    createMutation.isPending;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -148,6 +193,7 @@ export default function Users() {
               <TableHead>Email</TableHead>
               <TableHead>Groups</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Auth</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
@@ -156,7 +202,7 @@ export default function Users() {
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
+                  {Array.from({ length: 7 }).map((_, j) => <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>)}
                 </TableRow>
               ))
             ) : filtered.map((u) => (
@@ -174,6 +220,14 @@ export default function Users() {
                   <Badge variant={u.isAdmin ? "default" : "outline"}>{u.isAdmin ? "Admin" : "User"}</Badge>
                 </TableCell>
                 <TableCell>
+                  <Badge
+                    variant={u.authProvider === "ldap" ? "secondary" : "outline"}
+                    className={u.authProvider === "ldap" ? "bg-blue-100 text-blue-800 border-blue-200" : ""}
+                  >
+                    {u.authProvider === "ldap" ? "LDAP" : "Local"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
                   <Badge variant={u.isActive ? "secondary" : "outline"}>{u.isActive ? "Active" : "Inactive"}</Badge>
                 </TableCell>
                 <TableCell>
@@ -181,9 +235,11 @@ export default function Users() {
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(u)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setResetUser(u)}>
-                      <KeyRound className="w-3.5 h-3.5" />
-                    </Button>
+                    {u.authProvider !== "ldap" && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setResetUser(u)}>
+                        <KeyRound className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteUser(u)}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -195,10 +251,33 @@ export default function Users() {
         </Table>
       </div>
 
+      {/* ── Create User Dialog ─────────────────────────────────────────────── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Create User</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Auth Provider</Label>
+              <Select
+                value={createForm.authProvider}
+                onValueChange={(v) => setCreateForm((f) => ({ ...f, authProvider: v as "local" | "ldap", password: "" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">Local — password managed in TaskFlow</SelectItem>
+                  <SelectItem value="ldap">LDAP / Active Directory</SelectItem>
+                </SelectContent>
+              </Select>
+              {createForm.authProvider === "ldap" && (
+                <p className="text-xs text-muted-foreground">
+                  This user will authenticate against your LDAP/AD server. No password is stored in TaskFlow.
+                  If the user has never logged in before, TaskFlow will auto-provision their account on first login.
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>First Name *</Label>
@@ -213,10 +292,18 @@ export default function Users() {
               <Label>Email *</Label>
               <Input type="email" value={createForm.email} onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} />
             </div>
-            <div className="space-y-1.5">
-              <Label>Password *</Label>
-              <Input type="password" value={createForm.password} onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))} />
-            </div>
+
+            {createForm.authProvider === "local" && (
+              <div className="space-y-1.5">
+                <Label>Password *</Label>
+                <Input
+                  type="password"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                />
+              </div>
+            )}
+
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Switch checked={createForm.isAdmin} onCheckedChange={(v) => setCreateForm((f) => ({ ...f, isAdmin: v }))} id="create-admin" />
@@ -242,20 +329,26 @@ export default function Users() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button
-              onClick={() => createMutation.mutate({ data: createForm })}
-              disabled={!createForm.firstName || !createForm.surname || !createForm.email || !createForm.password || createMutation.isPending}
-            >
+            <Button onClick={handleCreate} disabled={isCreateDisabled}>
               {createMutation.isPending ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* ── Edit User Dialog ───────────────────────────────────────────────── */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Edit User</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-2">
+            {editUser?.authProvider === "ldap" && (
+              <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">LDAP</Badge>
+                <span>This account is authenticated via LDAP / Active Directory.</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>First Name</Label>
@@ -305,6 +398,7 @@ export default function Users() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Delete Confirmation ────────────────────────────────────────────── */}
       <Dialog open={!!deleteUser} onOpenChange={(o) => !o && setDeleteUser(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete User</DialogTitle></DialogHeader>
@@ -318,6 +412,7 @@ export default function Users() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Reset Password Dialog (local users only) ───────────────────────── */}
       <Dialog open={!!resetUser} onOpenChange={(o) => !o && setResetUser(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reset Password</DialogTitle></DialogHeader>

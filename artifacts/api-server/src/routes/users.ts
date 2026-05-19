@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { usersTable, userSecurityGroupsTable, securityGroupsTable } from "@workspace/db";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { hashPassword } from "../lib/auth";
 import { authenticate, requireAdmin, type AuthRequest } from "../middlewares/authenticate";
 import { CreateUserBody, UpdateUserBody, ResetUserPasswordBody } from "@workspace/api-zod";
@@ -23,6 +23,7 @@ async function getUserWithGroups(userId: number) {
     email: user.email,
     isAdmin: user.isAdmin,
     isActive: user.isActive,
+    authProvider: user.authProvider,
     securityGroups: groups,
     createdAt: user.createdAt.toISOString(),
   };
@@ -59,7 +60,7 @@ router.post("/users", authenticate, requireAdmin, async (req: AuthRequest, res) 
     return;
   }
 
-  const { firstName, surname, email, password, isAdmin, isActive, securityGroupIds } = parsed.data;
+  const { firstName, surname, email, password, isAdmin, isActive, securityGroupIds, authProvider } = parsed.data;
 
   const existing = await db.query.usersTable.findFirst({ where: eq(usersTable.email, email) });
   if (existing) {
@@ -67,16 +68,35 @@ router.post("/users", authenticate, requireAdmin, async (req: AuthRequest, res) 
     return;
   }
 
-  const passwordHash = await hashPassword(password);
+  const provider = authProvider ?? "local";
+
+  if (provider === "local") {
+    if (!password) {
+      res.status(400).json({ message: "Password is required for local accounts" });
+      return;
+    }
+    const passwordHash = await hashPassword(password);
+    const [newUser] = await db
+      .insert(usersTable)
+      .values({ firstName, surname, email, passwordHash, authProvider: "local", isAdmin: isAdmin ?? false, isActive: isActive ?? true })
+      .returning();
+
+    if (securityGroupIds?.length) {
+      await db.insert(userSecurityGroupsTable).values(securityGroupIds.map((gid) => ({ userId: newUser.id, groupId: gid })));
+    }
+    const result = await getUserWithGroups(newUser.id);
+    res.status(201).json(result);
+    return;
+  }
+
   const [newUser] = await db
     .insert(usersTable)
-    .values({ firstName, surname, email, passwordHash, isAdmin: isAdmin ?? false, isActive: isActive ?? true })
+    .values({ firstName, surname, email, passwordHash: null, authProvider: "ldap", isAdmin: isAdmin ?? false, isActive: isActive ?? true })
     .returning();
 
   if (securityGroupIds?.length) {
     await db.insert(userSecurityGroupsTable).values(securityGroupIds.map((gid) => ({ userId: newUser.id, groupId: gid })));
   }
-
   const result = await getUserWithGroups(newUser.id);
   res.status(201).json(result);
 });
@@ -151,6 +171,11 @@ router.post("/users/:id/reset-password", authenticate, requireAdmin, async (req:
   const existing = await db.query.usersTable.findFirst({ where: eq(usersTable.id, id) });
   if (!existing) {
     res.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  if (existing.authProvider === "ldap") {
+    res.status(400).json({ message: "Cannot reset password for LDAP accounts" });
     return;
   }
 
